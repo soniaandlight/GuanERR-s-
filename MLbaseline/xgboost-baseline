@@ -1,0 +1,180 @@
+#%%
+
+# This Python 3 environment comes with many helpful analytics libraries installed
+# It is defined by the kaggle/python Docker image: https://github.com/kaggle/docker-python
+# For example, here's several helpful packages to load
+
+import numpy as np # linear algebra
+import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+
+# Input data files are available in the read-only "../input/" directory
+# For example, running this (by clicking run or pressing Shift+Enter) will list all files under the input directory
+
+import os
+for dirname, _, filenames in os.walk('/kaggle/input'):
+    for filename in filenames:
+        print(os.path.join(dirname, filename))
+
+# You can write up to 20GB to the current directory (/kaggle/working/) that gets preserved as output when you create a version using "Save & Run All" 
+# You can also write temporary files to /kaggle/temp/, but they won't be saved outside of the current session
+
+#%%
+
+import pandas as pd
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+#%%
+
+traindata=pd.read_csv('../input/titanic/train.csv')
+traindata
+
+#%%
+
+testdata=pd.read_csv('../input/titanic/test.csv') #what we need to predict
+testdata
+
+#%%
+
+sample=pd.read_csv('../input/titanic/gender_submission.csv')
+sample
+
+#%%
+
+traindata.info()
+
+#%%
+
+traindata.describe()
+
+#%%
+
+traindata.isnull().sum()
+
+#%%
+
+traindata.shape,testdata.shape
+
+#%%
+
+import seaborn as sns
+sns.countplot(traindata.Survived)
+traindata.Survived.value_counts()
+
+#%%
+
+traindata.Age.fillna(traindata.Age.mean(),inplace=True)
+
+#%%
+
+traindata.Sex=traindata.Sex.replace('male',1)
+traindata.Sex=traindata.Sex.replace('female',0)
+
+#%%
+
+traindata.drop(['Name','Cabin','Embarked','Ticket'],axis=1,inplace=True)
+traindata
+
+#%%
+
+datas=traindata.iloc[:,2:8]
+datas
+
+#%%
+
+labels=traindata.iloc[:,1]
+labels
+
+#%%
+
+corr=datas.corr()
+corr
+
+#%%
+
+sns.heatmap(corr,annot=True)
+
+#%%
+
+'''import numpy as np
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler().fit(train_data)
+zscoretrain=scaler.transform(train_data)
+zscoretrain
+#在想要不要标准化后看下协方差，比较方差和相关系数来取舍变量
+covvv=np.matmul(zscoretrain.T,zscoretrain)
+cov=pd.DataFrame(covvv)
+cov'''
+#为什么做不出来，做出来结果怪怪的
+
+#%%
+
+from sklearn.model_selection import train_test_split
+train_data, test_data, train_label, test_label = train_test_split(datas, labels, test_size=0.7, random_state=1)
+import xgboost as xgb
+
+#%%
+
+#from xgboost.sklearn import XGBClassifier
+xgbmodel=xgb.XGBClassifier(max_depth=5,n_estimator=50,seed=52,learning_rate=0.1)
+xgbmodel.fit(train_data,train_label,eval_metric='auc',verbose=True,
+            eval_set=[(test_data,test_label)],early_stopping_rounds=100)
+
+
+#%%
+
+y_pred=xgbmodel.predict(test_data)
+y_pred
+
+#%%
+
+from sklearn.metrics import classification_report,confusion_matrix
+confusion_matrix(test_label,y_pred)
+print(classification_report(test_label, y_pred))
+
+#%%
+
+predictdata=pd.read_csv('../input/titanic/test.csv')
+predictdata
+
+#%%
+
+predictdata.drop(['Name','Cabin','Embarked','Ticket'],axis=1,inplace=True)
+
+#%%
+
+predictdata
+
+#%%
+
+predictdata.Age.fillna(predictdata.Age.mean(),inplace=True)
+predictdata.Sex=predictdata.Sex.replace('male',1)
+predictdata.Sex=predictdata.Sex.replace('female',0)
+predictdata.shape
+
+#%%
+
+predictdata.iloc[:,1:7]
+
+#%%
+
+predict_label=xgbmodel.predict(predictdata.iloc[:,1:7])
+predict_label
+
+#%%
+
+predict_probe=xgbmodel.predict_proba(predictdata.iloc[:,1:7])
+
+#%%
+
+result=pd.DataFrame({'PassengerID':predictdata.PassengerId,'Survived':predict_label})
+result
+result.to_csv('forsubmission.csv',index=False) #index就是最左边的序号
+
+#%%
+
+
+
+#%%
+
+
